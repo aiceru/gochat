@@ -4,13 +4,17 @@ import (
 	"net/http"
 
 	sessions "github.com/goincremental/negroni-sessions"
-
-	"github.com/codegangsta/negroni"
+	"github.com/goincremental/negroni-sessions/cookiestore"
 	"github.com/julienschmidt/httprouter"
 	"github.com/unrolled/render"
+	"github.com/urfave/negroni"
+	"gopkg.in/mgo.v2"
 )
 
-var renderer *render.Render
+var (
+	renderer     *render.Render
+	mongoSession *mgo.Session
+)
 
 const (
 	sessionKey    = "simple_chat_session"
@@ -21,6 +25,13 @@ func init() {
 	renderer = render.New(render.Options{
 		IsDevelopment: true,
 	})
+
+	s, err := mgo.Dial("mongodb://localhost")
+	if err != nil {
+		panic(err)
+	}
+
+	mongoSession = s
 }
 
 func main() {
@@ -42,8 +53,9 @@ func main() {
 	router.GET("/auth/:action/:provider", loginHandler)
 
 	n := negroni.Classic()
-	// store := cookiestore.New([]byte(sessionSecret))
-	// n.Use(sessions.Sessions(sessionKey, store))
+	store := cookiestore.New([]byte(sessionSecret))
+	n.Use(sessions.Sessions(sessionKey, store))
+	n.Use(loginRequired("/login", "/auth"))
 	n.UseHandler(router)
 
 	n.Run(":3000")

@@ -22,14 +22,17 @@ type User struct {
 	Expired   time.Time `json:"expired"`
 }
 
+// Valid check if the session is valid
 func (u *User) Valid() bool {
 	return u.Expired.Sub(time.Now()) > 0
 }
 
+// Refresh expired time
 func (u *User) Refresh() {
 	u.Expired = time.Now().Add(sessionDuration)
 }
 
+// GetCurrentUser get current user info from session
 func GetCurrentUser(r *http.Request) *User {
 	s := sessions.GetSession(r)
 	if s.Get(currentUserKey) == nil {
@@ -42,6 +45,7 @@ func GetCurrentUser(r *http.Request) *User {
 	return &u
 }
 
+// SetCurrentUser set current user info to session
 func SetCurrentUser(r *http.Request, u *User) {
 	if u != nil {
 		u.Refresh()

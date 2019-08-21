@@ -1,8 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
+
+	"github.com/urfave/negroni"
 
 	"github.com/stretchr/objx"
 
@@ -26,6 +30,30 @@ func init() {
 			"http://127.0.0.1:3000/auth/callback/google"))
 }
 
+func loginRequired(ignore ...string) negroni.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
+		for _, s := range ignore {
+			if strings.HasPrefix(r.URL.Path, s) {
+				next(w, r)
+				return
+			}
+		}
+
+		u := GetCurrentUser(r)
+
+		if u != nil && u.Valid() {
+			SetCurrentUser(r, u)
+			next(w, r)
+			return
+		}
+
+		SetCurrentUser(r, nil)
+		fmt.Println(r.URL.RequestURI())
+		sessions.GetSession(r).Set(nextPageKey, r.URL.RequestURI())
+		http.Redirect(w, r, "/login", http.StatusFound)
+	}
+}
+
 func loginHandler(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	action := ps.ByName("action")
 	provider := ps.ByName("provider")
@@ -37,20 +65,17 @@ func loginHandler(w http.ResponseWriter, req *http.Request, ps httprouter.Params
 		if err != nil {
 			log.Fatalln(err)
 		}
-		loginUrl, err := p.GetBeginAuthURL(nil, nil)
+		loginURL, err := p.GetBeginAuthURL(nil, nil)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		http.Redirect(w, req, loginUrl, http.StatusFound)
+		http.Redirect(w, req, loginURL, http.StatusFound)
 	case "callback":
 		p, err := gomniauth.Provider(provider)
 		if err != nil {
 			log.Fatalln(err)
 		}
 		creds, err := p.CompleteAuth(objx.MustFromURLQuery(req.URL.RawQuery))
-		if err != nil {
-			log.Fatalln(err)
-		}
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -68,7 +93,8 @@ func loginHandler(w http.ResponseWriter, req *http.Request, ps httprouter.Params
 		}
 
 		SetCurrentUser(req, u)
-		http.Redirect(w, req, s.Get(nextPageKey).(string), http.StatusFound)
+		temp := s.Get(nextPageKey)
+		http.Redirect(w, req, temp.(string), http.StatusFound)
 	default:
 		http.Error(w, "Auth action '"+action+"'is not supported", http.StatusNotFound)
 	}
