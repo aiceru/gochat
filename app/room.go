@@ -25,4 +25,31 @@ func createRoom(w http.ResponseWriter, req *http.Request, ps httprouter.Params) 
 	if errs.Handle(w) {
 		return
 	}
+
+	session := mongoSession.Copy()
+	defer session.Close()
+
+	r.ID = bson.NewObjectId()
+	c := session.DB("test").C("rooms")
+
+	if err := c.Insert(r); err != nil {
+		renderer.JSON(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	renderer.JSON(w, http.StatusCreated, r)
+}
+
+func retrieveRooms(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	session := mongoSession.Copy()
+	defer session.Close()
+
+	var rooms []Room
+	err := session.DB("test").C("rooms").Find(nil).All(&rooms)
+	if err != nil {
+		renderer.JSON(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	renderer.JSON(w, http.StatusOK, rooms)
 }
