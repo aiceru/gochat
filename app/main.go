@@ -52,7 +52,7 @@ func main() {
 
 	router.GET("/auth/:action/:provider", loginHandler)
 	router.POST("/rooms", createRoom)
-	router.GET("/rooms", retreiveRooms)
+	router.GET("/rooms", retrieveRooms)
 	router.GET("/rooms/:id/messages", retrieveMessages)
 
 	n := negroni.Classic()

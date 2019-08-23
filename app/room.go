@@ -22,7 +22,8 @@ func (r *Room) FieldMap(req *http.Request) binding.FieldMap {
 func createRoom(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	r := new(Room)
 	errs := binding.Bind(req, r)
-	if errs.Handle(w) {
+	if errs != nil {
+		renderer.JSON(w, http.StatusInternalServerError, errs)
 		return
 	}
 
